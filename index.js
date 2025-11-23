@@ -1,18 +1,26 @@
 import express, { response } from "express";
+import cookieParser from "cookie-parser";
+import session from "express-session";
 const host = "localhost";
 const porta = 3000;
 const app = express();
 
-var listaFornecedores = [];
 var listaProdutos = [];
-let logado = false;
-let usuario; let senha;
 
 app.listen(porta, host, () => {
     console.log(`Aplicação rodando em http://${host}:${porta}`)
 });
 
 app.use(express.urlencoded({extended: true}));
+app.use(cookieParser());
+app.use(session({
+    secret: "segredodasessao",
+    resave: true,
+    saveUninitialized: true,
+    cookie: {
+        maxAge: 1000 * 60 * 15
+    }
+}));
 
 
 app.get("/", (req, res) => {
@@ -22,7 +30,7 @@ app.get("/", (req, res) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Atividade 03</title>
+            <title>Atividade 04</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
         </head>
         <body>
@@ -33,8 +41,8 @@ app.get("/", (req, res) => {
         </nav>
         <div>
     `;
-        if(logado){
-            resposta += `<h1 class="text-center border m-3 p-3 bg-light">Bem-vindo(a), ${usuario}!</h1>`;
+        if(req.session?.dadosLogin?.logado){
+            resposta += `<h1 class="text-center border m-3 p-3 bg-light">Bem-vindo(a), ${req.session?.dadosLogin?.usuario}!</h1>`;
         } else {
             resposta += `<h1 class="text-center border m-3 p-3 bg-light">Olá, você não está logado, entre na sua conta ou crie uma abaixo</h1>`;
         }
@@ -47,14 +55,6 @@ app.get("/", (req, res) => {
                     <p class="card-text">Gerencie todos os seus produtos aqui</p>
                     <a href="/cdstrProduto" class="card-link">Cadastrar</a>
                     <a href="/chcrProduto" class="card-link">Checar</a>
-                </div>
-            </div>
-            <div class="card" style="width: 18rem; margin: 0 auto;">
-                <div class="card-body">
-                    <h5 class="card-title">Fornecedores</h5>
-                    <p class="card-text">Gerencie todos os nossos fornecedores aqui</p>
-                    <a href="/cdstrFornecedor" class="card-link">Cadastrar</a>
-                    <a href="/chcrFornecedor" class="card-link">Checar</a>
                 </div>
             </div>
             <div class="card" style="width: 18rem; margin: 0 auto;">
@@ -78,6 +78,7 @@ app.get("/", (req, res) => {
         </script>
         </html>
     `;
+
     res.send(resposta);
 });
 
@@ -87,14 +88,14 @@ app.get("/", (req, res) => {
 
 
 
-app.get("/cdstrProduto", (req, res) => {
-    let resposta = `
+app.get("/cdstrProduto", verificaLog, (req, res) => {
+    res.send(`
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Atividade 03</title>
+            <title>Atividade 04</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
         </head>
         <body>
@@ -108,52 +109,38 @@ app.get("/cdstrProduto", (req, res) => {
             <h1 class="text-center border m-3 p-3 bg-light">Cadastro de Produtos</h1>
             <form method="POST" action="/dcnrProduto" class="row g-3 m-3 p-3 bg-light">
             <div class="col-md-4">
-                <label for="produto" class="form-label">Nome do Produto</label>
-                <input type="text" class="form-control" id="produto" name="produto">
+                <label for="desc" class="form-label">Descrição do Produto</label>
+                <input type="text" class="form-control" id="desc" name="desc">
             </div>
             <div class="col-md-4">
-                <label for="codigo" class="form-label">Código do Produto</label>
-                <input type="number" class="form-control" id="codigo" name="codigo">
+                <label for="codB" class="form-label">Código de Barras</label>
+                <input type="number" class="form-control" id="codB" name="codB">
             </div>
             <div class="col-md-4">
-                <label for="preco" class="form-label">Preço do Produto</label>
+                <label for="fabr" class="form-label">Nome do Fabricante</label>
+                <input type="text" class="form-control" id="fabr" name="fabr">
+            </div>
+            <div class="col-md-3">
+                <label for="custo" class="form-label">Preço de Custo</label>
                 <div class="input-group has-validation">
                 <span class="input-group-text" id="inputGroupPrepend">R$</span>
-                <input type="number" class="form-control" id="preco" name="preco" aria-describedby="inputGroupPrepend">
+                <input type="number" class="form-control" id="custo" name="custo" aria-describedby="inputGroupPrepend">
                 </div>
             </div>
-            <div class="col-md-6">
-                <label for="descricao" class="form-label">Descrição do Produto</label>
-                <input type="text" class="form-control" id="descricao" name="descricao">
+            <div class="col-md-3">
+                <label for="venda" class="form-label">Preço de Venda</label>
+                <div class="input-group has-validation">
+                <span class="input-group-text" id="inputGroupPrepend">R$</span>
+                <input type="number" class="form-control" id="venda" name="venda" aria-describedby="inputGroupPrepend">
+                </div>
             </div>
             <div class="col-md-3">
-                <label for="categoria" class="form-label">Categoria do Produto</label>
-                <select class="form-select" id="categoria" name="categoria">
-                <option selected disabled value="">Escolha</option>
-                <option>Medicamentos</option>
-                <option>Higiene Pessoal e Beleza</option>
-                <option>Dermocosméticos</option>
-                <option>Cuidados Infantis</option>
-                <option>Suplementos e Nutrição</option>
-                <option>Primeiros Socorros e Ortopedia</option>
-                <option>Higiene Bucal</option>
-                <option>Perfumaria</option>
-                </select>
+                <label for="qtde" class="form-label">Quantidade em Estoque</label>
+                <input type="number" class="form-control" id="qtde" name="qtde">
             </div>
             <div class="col-md-3">
-                <label for="fornecedor" class="form-label">Fornecedor do Produto</label>
-                <select class="form-select" id="fornecedor" name="fornecedor">
-                <option selected disabled value="">Escolha</option>
-    `;
-    if(listaFornecedores.length == 0){
-        resposta += `</select><div><h6 class="text-danger">Não há fornecedores cadastrados no sistema</h6></div>`;
-    } else {
-        for(let i = 0; i < listaFornecedores.length; i++){
-            resposta += `<option>${listaFornecedores[i].nomFan}</option>`;
-        }
-        resposta += `</select>`;
-    }
-    resposta += `
+                <label for="valid" class="form-label">Data de Validade</label>
+                <input type="date" class="form-control" id="valid" name="valid">
             </div>
             <div class="col-12">
                 <button class="btn btn-primary" type="submit">Cadastrar</button>
@@ -163,21 +150,14 @@ app.get("/cdstrProduto", (req, res) => {
         </body>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
         </html>
-    `;
-
-    res.send(resposta);
+    `);
 });
 
 app.post("/dcnrProduto", (req, res) => {
-    const produto = req.body.produto;
-    const codigo = req.body.codigo;
-    const preco = req.body.preco;
-    const descricao = req.body.descricao;
-    const categoria = req.body.categoria;
-    const fornecedor = req.body.fornecedor;
+    const {desc, codB, fabr, custo, venda, qtde, valid} = req.body;
 
-    if(produto && codigo && preco && descricao && categoria && fornecedor){
-        listaProdutos.push({produto, codigo, preco, descricao, categoria, fornecedor});
+    if(desc, codB, fabr, custo, venda, qtde, valid){
+        listaProdutos.push({desc, codB, fabr, custo, venda, qtde, valid});
         res.redirect("/chcrProduto");
     } else {
         let resposta = `
@@ -186,7 +166,7 @@ app.post("/dcnrProduto", (req, res) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Atividade 03</title>
+            <title>Atividade 04</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
         </head>
         <body>
@@ -200,84 +180,77 @@ app.post("/dcnrProduto", (req, res) => {
             <h1 class="text-center border m-3 p-3 bg-light">Cadastro de Produtos</h1>
             <form method="POST" action="/dcnrProduto" class="row g-3 m-3 p-3 bg-light">
             <div class="col-md-4">
-                <label for="produto" class="form-label">Nome do Produto</label>
-                <input type="text" class="form-control" id="produto" name="produto" value="${produto}">
+                <label for="desc" class="form-label">Descrição do Produto</label>
+                <input type="text" class="form-control" id="desc" name="desc" value="${desc}">
         `;
-        if(!produto){
-            resposta += `<div><h6 class="text-danger">Por favor, informe o Nome do Produto</h6></div>`;
+        if(!desc){
+            resposta += `<div><h6 class="text-danger">Por favor, escreva uma descrição</h6></div>`;
         }
         resposta += `
             </div>
             <div class="col-md-4">
-                <label for="codigo" class="form-label">Código do Produto</label>
-                <input type="number" class="form-control" id="codigo" name="codigo" value="${codigo}">
+                <label for="codB" class="form-label">Código de Barras</label>
+                <input type="number" class="form-control" id="codB" name="codB" value="${codB}">
         `;
-        if(!codigo){
-            resposta += `<div><h6 class="text-danger">Por favor, digite o Código</h6></div>`;
+        if(!codB){
+            resposta += `<div><h6 class="text-danger">Por favor, digite o código de barras</h6></div>`;
         }
         resposta += `
             </div>
             <div class="col-md-4">
-                <label for="preco" class="form-label">Preço do Produto</label>
+                <label for="fabr" class="form-label">Nome do Fabricante</label>
+                <input type="text" class="form-control" id="fabr" name="fabr" value="${fabr}">
+        `;
+        if(!fabr){
+            resposta += `<div><h6 class="text-danger">Por favor, escreva o nome do fabricante</h6></div>`;
+        }
+        resposta += `
+            </div>
+            <div class="col-md-3">
+                <label for="custo" class="form-label">Preço de Custo</label>
                 <div class="input-group has-validation">
                 <span class="input-group-text" id="inputGroupPrepend">R$</span>
-                <input type="number" class="form-control" id="preco" name="preco" value="${preco}" aria-describedby="inputGroupPrepend">
+                <input type="number" class="form-control" id="custo" name="custo" aria-describedby="inputGroupPrepend" value="${custo}">
                 </div>
         `;
-        if(!preco){
-            resposta += `<div><h6 class="text-danger">Por favor, digite o Preço</h6></div>`;
-        }
-        resposta += `
-            </div>
-            <div class="col-md-6">
-                <label for="descricao" class="form-label">Descrição do Produto</label>
-                <input type="text" class="form-control" id="descricao" name="descricao" value="${descricao}">
-        `;
-        if(!descricao){
-            resposta += `<div><h6 class="text-danger">Por favor, informe a Descrição</h6></div>`;
+        if(!custo){
+            resposta += `<div><h6 class="text-danger">Por favor, digite o preço de custo</h6></div>`;
         }
         resposta += `
             </div>
             <div class="col-md-3">
-                <label for="categoria" class="form-label">Categoria do Produto</label>
-                <select class="form-select" id="categoria" name="categoria">
-                <option selected disabled value="">Escolha</option>
-                <option>Medicamentos</option>
-                <option>Higiene Pessoal e Beleza</option>
-                <option>Dermocosméticos</option>
-                <option>Cuidados Infantis</option>
-                <option>Suplementos e Nutrição</option>
-                <option>Primeiros Socorros e Ortopedia</option>
-                <option>Higiene Bucal</option>
-                <option>Perfumaria</option>
-                </select>
+                <label for="venda" class="form-label">Preço de Venda</label>
+                <div class="input-group has-validation">
+                <span class="input-group-text" id="inputGroupPrepend">R$</span>
+                <input type="number" class="form-control" id="venda" name="venda" aria-describedby="inputGroupPrepend" value="${venda}">
+                </div>
         `;
-        if(!categoria){
-            resposta += `<div><h6 class="text-danger">Por favor, escolha uma Categoria</h6></div>`;
+        if(!venda){
+            resposta += `<div><h6 class="text-danger">Por favor, digite o preço de venda</h6></div>`;
         }
         resposta += `
             </div>
             <div class="col-md-3">
-                <label for="fornecedor" class="form-label">Fornecedor do Produto</label>
-                <select class="form-select" id="fornecedor" name="fornecedor">
-                <option selected disabled value="">Escolha</option>
+                <label for="qtde" class="form-label">Quantidade em Estoque</label>
+                <input type="number" class="form-control" id="qtde" name="qtde" value="${qtde}">
         `;
-        if(listaFornecedores.length == 0){
-            resposta += `</select><div><h6 class="text-danger">Não há fornecedores cadastrados no sistema</h6></div>`;
-        } else {
-            for(let i = 0; i < listaFornecedores.length; i++){
-                resposta += `<option>${listaFornecedores[i].nomFan}</option>`;
-            }
-            resposta += `</select>`;
-            if(!fornecedor){
-                resposta += `<div><h6 class="text-danger">Por favor, escolha um Fornecedor</h6></div>`;
-            }
+        if(!qtde){
+            resposta += `<div><h6 class="text-danger">Por favor, digite a quantidade em estoque</h6></div>`;
         }
         resposta += `
-                </div>
-                <div class="col-12">
-                    <button class="btn btn-primary" type="submit">Cadastrar</button>
-                </div>
+            </div>
+            <div class="col-md-3">
+                <label for="valid" class="form-label">Data de Validade</label>
+                <input type="date" class="form-control" id="valid" name="valid" value="${valid}">
+        `;
+        if(!valid){
+            resposta += `<div><h6 class="text-danger">Por favor, selecione a data de validade</h6></div>`;
+        }
+        resposta += `
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary" type="submit">Cadastrar</button>
+            </div>
             </form>
         </div>
         </body>
@@ -289,20 +262,25 @@ app.post("/dcnrProduto", (req, res) => {
     }
 });
 
-app.get("/chcrProduto", (req, res) => {
+app.get("/chcrProduto", verificaLog, (req, res) => {
+    let ultimoAcesso = req.cookies?.ultimoAcesso;
+    const data = new Date();
+    res.cookie("ultimoAcesso", data.toLocaleString());
+
     let resposta = `
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Atividade 02</title>
+        <title>Atividade 04</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     </head>
     <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">MENU</a>
+            <h5 class="d-flex p-2">Último acesso: ${ultimoAcesso || "Primeiro acesso"}</h5>
         </div>
     </nav>
     <div class="container">
@@ -310,24 +288,26 @@ app.get("/chcrProduto", (req, res) => {
         <table class="table table-striped">
             <thead>
                 <tr>
-                <th scope="col">Produto</th>
                 <th scope="col">Descrição</th>
-                <th scope="col">Preço</th>
-                <th scope="col">Código</th>
-                <th scope="col">Categoria</th>
-                <th scope="col">Fornecedor</th>
+                <th scope="col">Código de Barras</th>
+                <th scope="col">Fabricante</th>
+                <th scope="col">Preço de Custo</th>
+                <th scope="col">Preço de Venda</th>
+                <th scope="col">Quantidade</th>
+                <th scope="col">Data de Validade</th>
                 </tr>
             </thead>
             <tbody>`
         for(let i = 0; i < listaProdutos.length; i++){
             resposta += `
                 <tr>
-                    <td>${listaProdutos[i].produto}</td>
-                    <td>${listaProdutos[i].descricao}</td>
-                    <td>${listaProdutos[i].preco}</td>
-                    <td>${listaProdutos[i].codigo}</td>
-                    <td>${listaProdutos[i].categoria}</td>
-                    <td>${listaProdutos[i].fornecedor}</td>
+                    <td>${listaProdutos[i].desc}</td>
+                    <td>${listaProdutos[i].codB}</td>
+                    <td>${listaProdutos[i].fabr}</td>
+                    <td>${listaProdutos[i].custo}</td>
+                    <td>${listaProdutos[i].venda}</td>
+                    <td>${listaProdutos[i].qtde}</td>
+                    <td>${listaProdutos[i].valid}</td>
                 </tr>
             `;
         }
@@ -340,326 +320,9 @@ app.get("/chcrProduto", (req, res) => {
             </html>
         `;
 
-    res.send(resposta);
-});
-
-
-
-//FORNECEDORES
-
-
-
-app.get("/cdstrFornecedor", (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Atividade 03</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-        </head>
-        <body>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="/">MENU</a>
-            </div>
-        </nav>
-
-        <div class="container">
-            <h1 class="text-center border m-3 p-3 bg-light">Cadastro de Fornecedores</h1>
-            <form method="POST" action="/dcnrFornecedor" class="row g-3 m-3 p-3 bg-light">
-                <div class="col-md-4">
-                    <label for="cnpj" class="form-label">CNPJ</label>
-                    <input type="number" class="form-control" id="cnpj" name="cnpj">
-                </div>
-                <div class="col-md-4">
-                    <label for="razSoc" class="form-label">Razão Social ou Nome do Fornecedor</label>
-                    <input type="text" class="form-control" id="razSoc" name="razSoc">
-                </div>
-                <div class="col-md-4">
-                    <label for="nomFan" class="form-label">Nome Fantasia</label>
-                    <input type="text" class="form-control" id="nomFan" name="nomFan">
-                </div>
-                <div class="col-md-7">
-                    <label for="endereco" class="form-label">Endereço</label>
-                    <input type="text" class="form-control" id="endereco" name="endereco">
-                </div>
-                <div class="col-md-3">
-                    <label for="cidade" class="form-label">Cidade</label>
-                    <input type="text" class="form-control" id="cidade" name="cidade">
-                </div>
-                <div class="col-md-2">
-                    <label for="uf" class="form-label">UF</label>
-                    <select class="form-select" id="uf" name="uf">
-                    <option selected disabled value="">Selecione</option>
-                    <option value="AC">Acre</option>
-                    <option value="AL">Alagoas</option>
-                    <option value="AP">Amapá</option>
-                    <option value="AM">Amazonas</option>
-                    <option value="BA">Bahia</option>
-                    <option value="CE">Ceará</option>
-                    <option value="DF">Distrito Federal</option>
-                    <option value="ES">Espírito Santo</option>
-                    <option value="GO">Goiás</option>
-                    <option value="MA">Maranhão</option>
-                    <option value="MT">Mato Grosso</option>
-                    <option value="MS">Mato Grosso do Sul</option>
-                    <option value="MG">Minas Gerais</option>
-                    <option value="PA">Pará</option>
-                    <option value="PB">Paraíba</option>
-                    <option value="PR">Paraná</option>
-                    <option value="PE">Pernambuco</option>
-                    <option value="PI">Piauí</option>
-                    <option value="RJ">Rio de Janeiro</option>
-                    <option value="RN">Rio Grande do Norte</option>
-                    <option value="RS">Rio Grande do Sul</option>
-                    <option value="RO">Rondônia</option>
-                    <option value="RR">Roraima</option>
-                    <option value="SC">Santa Catarina</option>
-                    <option value="SP">São Paulo</option>
-                    <option value="SE">Sergipe</option>
-                    <option value="TO">Tocantins</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="cep" class="form-label">CEP</label>
-                    <input type="number" class="form-control" id="cep" name="cep">
-                </div>
-                <div class="col-md-5">
-                    <label for="email" class="form-label">E-mail</label>
-                    <input type="email" class="form-control" id="email" name="email">
-                </div>
-                <div class="col-md-5">
-                    <label for="telefone" class="form-label">Telefone</label>
-                    <input type="tel" class="form-control" id="telefone" name="telefone">
-                </div>
-                <div class="col-12">
-                    <button class="btn btn-primary" type="submit">Cadastrar</button>
-                </div>
-            </form>
-        </div>
-        </body>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-        </html>
-    `);
-});
-
-app.post("/dcnrFornecedor", (req, res) => {
-    const cnpj = req.body.cnpj;
-    const razSoc = req.body.razSoc;
-    const nomFan = req.body.nomFan;
-    const endereco = req.body.endereco;
-    const cidade = req.body.cidade;
-    const uf = req.body.uf;
-    const cep = req.body.cep;
-    const email = req.body.email;
-    const telefone = req.body.telefone;
-
-    if(cnpj && razSoc && nomFan && endereco && cidade && uf && cep && email && telefone){
-        listaFornecedores.push({cnpj, razSoc, nomFan, endereco, cidade, uf, cep, email, telefone});
-        res.redirect("/chcrFornecedor");
-    } else {
-        let resposta = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Atividade 03</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-        </head>
-        <body>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="/">MENU</a>
-            </div>
-        </nav>
-
-        <div class="container">
-            <h1 class="text-center border m-3 p-3 bg-light">Cadastro de Fornecedores</h1>
-            <form method="POST" action="/dcnrFornecedor" class="row g-3 m-3 p-3 bg-light">
-                <div class="col-md-4">
-                    <label for="cnpj" class="form-label">CNPJ</label>
-                    <input type="number" class="form-control" id="cnpj" name="cnpj" value="${cnpj}">
-        `;
-        if(!cnpj){
-            resposta += `<div><h6 class="text-danger">Por favor, digite o CNPJ</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-4">
-                    <label for="razSoc" class="form-label">Razão Social ou Nome do Fornecedor</label>
-                    <input type="text" class="form-control" id="razSoc" name="razSoc" value="${razSoc}">
-        `;
-        if(!razSoc){
-            resposta += `<div><h6 class="text-danger">Por favor, informe a Razão Social ou Nome do Fornecedor</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-4">
-                    <label for="nomFan" class="form-label">Nome Fantasia</label>
-                    <input type="text" class="form-control" id="nomFan" name="nomFan" value="${nomFan}">
-        `;
-        if(!nomFan){
-            resposta += `<div><h6 class="text-danger">Por favor, informe o Nome Fantasia</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-7">
-                    <label for="endereco" class="form-label">Endereço</label>
-                    <input type="text" class="form-control" id="endereco" name="endereco" value="${endereco}">
-        `;
-        if(!endereco){
-            resposta += `<div><h6 class="text-danger">Por favor, informe o Endereço</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-3">
-                    <label for="cidade" class="form-label">Cidade</label>
-                    <input type="text" class="form-control" id="cidade" name="cidade" value="${cidade}">
-        `;
-        if(!cidade){
-            resposta += `<div><h6 class="text-danger">Por favor, informe a Cidade</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-2">
-                    <label for="uf" class="form-label">UF</label>
-                    <select class="form-select" id="uf" name="uf">
-                    <option selected disabled value="">Selecione</option>
-                    <option value="AC">Acre</option>
-                    <option value="AL">Alagoas</option>
-                    <option value="AP">Amapá</option>
-                    <option value="AM">Amazonas</option>
-                    <option value="BA">Bahia</option>
-                    <option value="CE">Ceará</option>
-                    <option value="DF">Distrito Federal</option>
-                    <option value="ES">Espírito Santo</option>
-                    <option value="GO">Goiás</option>
-                    <option value="MA">Maranhão</option>
-                    <option value="MT">Mato Grosso</option>
-                    <option value="MS">Mato Grosso do Sul</option>
-                    <option value="MG">Minas Gerais</option>
-                    <option value="PA">Pará</option>
-                    <option value="PB">Paraíba</option>
-                    <option value="PR">Paraná</option>
-                    <option value="PE">Pernambuco</option>
-                    <option value="PI">Piauí</option>
-                    <option value="RJ">Rio de Janeiro</option>
-                    <option value="RN">Rio Grande do Norte</option>
-                    <option value="RS">Rio Grande do Sul</option>
-                    <option value="RO">Rondônia</option>
-                    <option value="RR">Roraima</option>
-                    <option value="SC">Santa Catarina</option>
-                    <option value="SP">São Paulo</option>
-                    <option value="SE">Sergipe</option>
-                    <option value="TO">Tocantins</option>
-                    </select>
-        `;
-        if(!uf){
-            resposta += `<div><h6 class="text-danger">Por favor, selecione uma Unidade Federativa</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-2">
-                    <label for="cep" class="form-label">CEP</label>
-                    <input type="number" class="form-control" id="cep" name="cep" value="${cep}">
-        `;
-        if(!cep){
-            resposta += `<div><h6 class="text-danger">Por favor, digite o CEP</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-5">
-                    <label for="email" class="form-label">E-mail</label>
-                    <input type="email" class="form-control" id="email" name="email" value="${email}">
-        `;
-        if(!email){
-            resposta += `<div><h6 class="text-danger">Por favor, informe o E-mail</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-md-5">
-                    <label for="telefone" class="form-label">Telefone</label>
-                    <input type="tel" class="form-control" id="telefone" name="telefone" value="${telefone}">
-        `;
-        if(!telefone){
-            resposta += `<div><h6 class="text-danger">Por favor, digite o Telefone</h6></div>`;
-        }
-        resposta += `
-                </div>
-                <div class="col-12">
-                    <button class="btn btn-primary" type="submit">Cadastrar</button>
-                </div>
-            </form>
-        </div>
-        </body>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-        </html>
-        `;
-        res.send(resposta);
-    }
-});
-
-app.get("/chcrFornecedor", (req, res) => {
-    let resposta = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Atividade 03</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    </head>
-    <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">MENU</a>
-        </div>
-    </nav>
-    <div class="container">
-        <h1 class="text-center border m-3 p-3 bg-light">Lista de Fornecedores</h1>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                <th scope="col">CNPJ</th>
-                <th scope="col">Razão Social</th>
-                <th scope="col">Nome Fantasia</th>
-                <th scope="col">Endereço</th>
-                <th scope="col">Cidade</th>
-                <th scope="col">UF</th>
-                <th scope="col">CEP</th>
-                <th scope="col">E-mail</th>
-                <th scope="col">Telefone</th>
-                </tr>
-            </thead>
-            <tbody>`
-        for(let i = 0; i < listaFornecedores.length; i++){
-            resposta += `
-                <tr>
-                    <td>${listaFornecedores[i].cnpj}</td>
-                    <td>${listaFornecedores[i].razSoc}</td>
-                    <td>${listaFornecedores[i].nomFan}</td>
-                    <td>${listaFornecedores[i].endereco}</td>
-                    <td>${listaFornecedores[i].cidade}</td>
-                    <td>${listaFornecedores[i].uf}</td>
-                    <td>${listaFornecedores[i].cep}</td>
-                    <td>${listaFornecedores[i].email}</td>
-                    <td>${listaFornecedores[i].telefone}</td>
-                </tr>
-            `;
-        }
-        resposta += `
-            </tbody>
-            </table>
-            </div>
-            </body>
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-            </html>
-        `;
-
-    res.send(resposta);
+    res.setHeader("Content-Type", "text/html")
+    res.write(resposta);
+    res.end();
 });
 
 
@@ -675,7 +338,7 @@ app.get("/signin", (req, res) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Atividade 03</title>
+            <title>Atividade 04</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
         </head>
         <body>
@@ -690,15 +353,15 @@ app.get("/signin", (req, res) => {
         <form method="POST" action="/signar" class="row g-3 m-3 p-3 bg-light">
             <div class="col-8 mx-auto">
                 <label for="usuario" class="form-label">Nome de Usuário</label>
-                <input type="text" class="form-control" id="usuario" name="usuario" aria-describedby="emailHelp">
+                <input type="text" class="form-control" id="user" name="user" aria-describedby="emailHelp">
             </div>
             <div class="col-8 mx-auto">
                 <label for="senha" class="form-label">Senha</label>
-                <input type="password" class="form-control" id="senha" name="senha">
+                <input type="password" class="form-control" id="pass" name="pass">
             </div>
             <div class="col-8 mx-auto">
                 <label for="senha2" class="form-label">Repetir Senha</label>
-                <input type="password" class="form-control" id="senha2" name="senha2">
+                <input type="password" class="form-control" id="pass2" name="pass2">
             </div>
             <button type="submit" class="btn btn-primary col-5 mx-auto">Criar Conta</button>
         </form>
@@ -710,21 +373,21 @@ app.get("/signin", (req, res) => {
 });
 
 app.post("/signar", (req, res) => {
-    const user = req.body.usuario;
-    const pass = req.body.senha;
-    const pass2 = req.body.senha2;
+    const {user, pass, pass2} = req.body;
 
     if(user && pass && (pass == pass2)){
-        usuario = user;
-        senha = pass;
-        logado = true;
+        req.session.dadosLogin = {
+            logado: true,
+            usuario: user,
+            senha: pass
+        };
         res.send(`
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Atividade 03</title>
+                <title>Atividade 04</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
             </head>
             <body>
@@ -743,7 +406,7 @@ app.post("/signar", (req, res) => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Atividade 03</title>
+                <title>Atividade 04</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
             </head>
             <body>
@@ -758,19 +421,19 @@ app.post("/signar", (req, res) => {
             <form method="POST" action="/signar" class="row g-3 m-3 p-3 bg-light">
                 <div class="col-8 mx-auto">
                     <label for="usuario" class="form-label">Nome de Usuário</label>
-                    <input type="text" class="form-control" id="usuario" name="usuario" value="${user}" aria-describedby="emailHelp">
+                    <input type="text" class="form-control" id="user" name="user" value="${user}" aria-describedby="emailHelp">
         `;
         if(!user){
             resposta += `<div><h6 class="text-danger">Por favor, informe o seu Nome de Usuário</h6></div>`;
         }
-        if(user == usuario){
+        if(user == req.session?.dadosLogin?.usuario){
             resposta += `<div><h6 class="text-danger">Você já está usando este nome de usuário</h6></div>`;
         }
         resposta += `
                 </div>
                 <div class="col-8 mx-auto">
                     <label for="senha" class="form-label">Senha</label>
-                    <input type="password" class="form-control" id="senha" name="senha" value="${pass}">
+                    <input type="password" class="form-control" id="pass" name="pass" value="${pass}">
         `;
         if(!pass){
             resposta += `<div><h6 class="text-danger">Por favor, informe a sua Senha</h6></div>`;
@@ -782,7 +445,7 @@ app.post("/signar", (req, res) => {
                 </div>
                 <div class="col-8 mx-auto">
                     <label for="senha2" class="form-label">Repetir Senha</label>
-                    <input type="password" class="form-control" id="senha2" name="senha2" value="${pass2}">
+                    <input type="password" class="form-control" id="pass2" name="pass2" value="${pass2}">
                 </div>
                 <button type="submit" class="btn btn-primary col-5 mx-auto">Criar Conta</button>
             </form>
@@ -796,14 +459,14 @@ app.post("/signar", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-    if(!usuario && !senha){
+    if(!req.session.dadosLogin){
         res.send(`
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Atividade 03</title>
+                <title>Atividade 04</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
             </head>
             <body>
@@ -822,7 +485,7 @@ app.get("/login", (req, res) => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Atividade 03</title>
+                <title>Atividade 04</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
             </head>
             <body>
@@ -837,11 +500,11 @@ app.get("/login", (req, res) => {
             <form method="POST" action="/logar" class="row g-3 m-3 p-3 bg-light">
                 <div class="col-8 mx-auto">
                     <label for="usuario" class="form-label">Usuário</label>
-                    <input type="text" class="form-control" id="usuario" name="usuario" aria-describedby="emailHelp">
+                    <input type="text" class="form-control" id="user" name="user" aria-describedby="emailHelp">
                 </div>
                 <div class="col-8 mx-auto">
                     <label for="senha" class="form-label">Senha</label>
-                    <input type="password" class="form-control" id="senha" name="senha">
+                    <input type="password" class="form-control" id="pass" name="pass">
                 </div>
                 <button type="submit" class="btn btn-primary col-5 mx-auto">Entrar</button>
             </form>
@@ -854,18 +517,17 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/logar", (req, res) => {
-    const user = req.body.usuario;
-    const pass = req.body.senha;
+    const {user, pass} = req.body;
 
-    if(user == usuario && pass == senha){
-        logado = true;
+    if(user == req.session?.dadosLogin?.usuario && pass == req.session?.dadosLogin?.senha){
+        req.session.dadosLogin.logado = true;
         res.send(`
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Atividade 03</title>
+                <title>Atividade 04</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
             </head>
             <body>
@@ -884,7 +546,7 @@ app.post("/logar", (req, res) => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Atividade 03</title>
+                <title>Atividade 04</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
             </head>
             <body>
@@ -899,18 +561,18 @@ app.post("/logar", (req, res) => {
             <form method="POST" action="/logar" class="row g-3 m-3 p-3 bg-light">
                 <div class="col-8 mx-auto">
                     <label for="usuario" class="form-label">Usuário</label>
-                    <input type="text" class="form-control" id="usuario" name="usuario" value="${user}" aria-describedby="emailHelp">
+                    <input type="text" class="form-control" id="user" name="user" value="${user}" aria-describedby="emailHelp">
         `;
-        if(user != usuario){
+        if(user != req.session?.dadosLogin?.usuario){
             resposta += `<div><h6 class="text-danger">Usuário inválido</h6></div>`;
         }
         resposta += `
                 </div>
                 <div class="col-8 mx-auto">
                     <label for="senha" class="form-label">Senha</label>
-                    <input type="password" class="form-control" id="senha" name="senha" value="${pass}">
+                    <input type="password" class="form-control" id="pass" name="pass" value="${pass}">
         `;
-        if(pass != senha){
+        if(pass != req.session?.dadosLogin?.senha){
             resposta += `<div><h6 class="text-danger">Senha incorreta</h6></div>`;
         }
 
@@ -929,6 +591,33 @@ app.post("/logar", (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-    logado = false;
+    if(req.session.dadosLogin){
+        req.session.dadosLogin.logado = false;
+    }
     res.redirect("/");
 });
+
+function verificaLog(req, res, next){
+    if(req.session?.dadosLogin?.logado){
+        next();
+    } else {
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Atividade 04</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+            </head>
+            <body>
+                <div class="container shadow p-3 bg-body rounded text-center">
+                    <p class="fs-2">Você não está cadastrado</p>
+                    <p class="fs-4">Clique <a href="/">aqui</a> para voltar ao menu principal e criar ou entrar na sua conta</p>
+                </div>
+            </body>
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+            </html>   
+        `);
+    }
+}
